@@ -1,0 +1,258 @@
+{
+  "name": "Upload Unknown news to knowledge database",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a560e034-70b6-4052-9c17-0540bb77713c",
+      "name": "When clicking \"Test workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "# Loop over input items and add a new field called 'myNewField' to the JSON of each one\nparsed_json = []\nfor item in _input.all():\n  parsed_item = {\n    \"text\": item.json.info.lstrip(\"INFO: \"),\n    \"category\": \"information\",\n    \"metadata\": {\n        \"date\": item.json.date,\n        \"tags\": [\n          \"newsletter\",\n          \"technology\"\n        ],\n        \"url\": item.json.url,\n        \"misc\": {\n          \"title\": item.json.title\n      }\n    }\n  }\n  parsed_json.append(parsed_item)\n  \nreturn parsed_json"
+      },
+      "id": "bd4cc6df-2335-43a2-af95-cda25f3876ac",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8888/knowledge/remember",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.toJsonString()}}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "dd72fd8e-9365-49fe-a1e8-9f6ec4d44c4b",
+      "name": "Upload data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "facts",
+        "options": {}
+      },
+      "id": "c324fc74-ed10-44c8-9647-26690b806915",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                6
+              ]
+            }
+          ]
+        }
+      },
+      "id": "fd451aab-859e-47ec-ab0a-d1fb45bfd187",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "07f3f714-5055-474e-94d9-35e68177fe2d",
+              "leftValue": "={{ $json.date.toDateTime() }}",
+              "rightValue": "={{ $now }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "beforeOrEquals"
+              }
+            },
+            {
+              "id": "01ad15ec-27bf-4210-9332-46a998dc7476",
+              "leftValue": "={{ $json.date.toDateTime() }}",
+              "rightValue": "={{ $now.minus(6,'day') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dea506a9-79c7-4897-a2a5-5a67e495d054",
+      "name": "Filter",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://unknow.news/archiwum.json",
+        "options": {}
+      },
+      "id": "e4e2f2a4-f628-4792-a588-1f57facd8adf",
+      "name": "Get All Unknown News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://unknow.news/archiwum.json",
+        "options": {}
+      },
+      "id": "8563187a-ba7e-4907-8e02-5092795d0262",
+      "name": "Get Recent Unknown News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1420,
+        60
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking \"Test workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Get All Unknown News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Upload data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Unknown News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Unknown News": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Unknown News": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b8d63b48-6dd4-44f4-906e-3e2054c54076",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9c19cf3fd6d2646f617dec2b9b5f9c5cbff67c2dfed1690e80ac5b3f462aa2b1"
+  },
+  "id": "pFNRaj2M5Ln4ZCk5",
+  "tags": [
+    {
+      "createdAt": "2024-04-15T13:32:12.031Z",
+      "updatedAt": "2024-04-15T13:32:12.031Z",
+      "id": "FFGC50kebjO6rQGN",
+      "name": "ai_devs"
+    }
+  ]
+}
